@@ -1,0 +1,13 @@
+# Arquivos de ambiente
+.env
+*.env
+
+# Credenciais
+*.json
+google_credentials.json
+
+# Ignora arquivos de ambiente em qualquer subpasta
+**/.env
+
+# Ignora arquivos de credenciais em qualquer subpasta
+**/*.json
