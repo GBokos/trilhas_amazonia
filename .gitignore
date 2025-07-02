@@ -11,3 +11,6 @@ google_credentials.json
 
 # Ignora arquivos de credenciais em qualquer subpasta
 **/*.json
+
+# Ignora secrets
+secrets

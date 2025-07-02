@@ -18,6 +18,7 @@ categorias_por_aplicativo = {
         , 'NFeProduto'
         , 'categoria'
         , 'pessoa'
+        , 'tabelaPreco'
     ],
     "financeiro": [
         'centroCusto',
@@ -166,7 +167,7 @@ def busca_historico(client, projeto, aplicativo, categorias_por_aplicativo):
 def main():
     load_dotenv()
 
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "C:/Users/gpbokos/OneDrive - Stefanini/Documentos/Giorgios/python/python/trilhasamazonia-6d08d8d68c11.json"
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/workspaces/trilhas_amazonia/trilhasAmazonia/credenciais_api1.json"
     client = connect_big_query()
 
     projeto = 'trilhasamazonia'

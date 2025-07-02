@@ -1,9 +1,6 @@
 #!/bin/bass
 
-# Restaura o .env da API2
-echo "$API2_ENV" > ./trilhasAmazonia2/.env
-
-# Restaura o arquivo de credenciais JSON
-echo "$API2_CRED" > ./trilhasAmazonia2/credenciais_api.json
+cat ./secrets/api2_env.txt > ./trilhasAmazonia2/.env
+cat ./secrets/api2_cred.json > ./trilhasAmazonia2/credenciais_api2.json
 
 echo "✅ Arquivos restaurados em ./trilhasAmazonia2"
