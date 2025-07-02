@@ -14,3 +14,6 @@ google_credentials.json
 
 # Ignora secrets
 secrets
+
+# Ignora pycache
+__pycache__

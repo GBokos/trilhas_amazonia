@@ -1,9 +1,9 @@
 import os
 
 from auth import obter_token
-from etl import atualiza_dados
 from dotenv import load_dotenv
 from bigquery_client import connect_big_query
+from etl import atualiza_dados, busca_historico
 from config import projetos, aplicativos, categorias_por_aplicativo
 
 # Função principal
@@ -37,6 +37,14 @@ def main():
                             , aplicativo=app
                             , categorias_por_aplicativo=categorias_por_aplicativo 
                             )
+                
+                # busca_historico(token=token
+                #             , client=client
+                #             , API_URL=API_URL
+                #             , projeto=projeto
+                #             , aplicativo=app
+                #             , categorias_por_aplicativo=categorias_por_aplicativo 
+                #             )
 
 if __name__ == "__main__":
     main()

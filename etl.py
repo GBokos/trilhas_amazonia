@@ -70,17 +70,87 @@ def atualiza_dados(token, API_URL, client, projeto, aplicativo, categorias_por_a
         
         carrega_dados(client, df, table_id)
 
-def busca_historico(client, projeto, aplicativo, categorias_por_aplicativo):
+def busca_historico(token, API_URL, client, projeto, aplicativo, categorias_por_aplicativo):
     categorias = categorias_por_aplicativo.get(aplicativo, None)
 
+    filtro = "%24orderby=dataInclusao%20desc"
+
     for categoria in categorias:
+        table_id = projeto+'.'+aplicativo+'.'+categoria.lower()
+
+        print("\n")
+
+        df_final = pd.DataFrame()
+
         query = f"""
             SELECT MIN(dataInclusao) 
-            FROM {projeto}.{aplicativo}.{categoria}
+            FROM {table_id}
         """
 
-        query_job = client.query(query)
-        result = query_job.result()
+        try:
+            client.get_table(table_id)
+            tabela_existe = True
+        except NotFound:
+            tabela_existe = False
+        
+        if tabela_existe:
+            print(table_id)
+            print("\n")
+
+            result = client.query(query).result()
+            data = next(result)
+
+            data_mais_antiga = pd.to_datetime(data[0])
+
+            print(data_mais_antiga)
+
+            skip = 0
+            top = 50
+
+            while True:
+
+                url = f"{API_URL}{aplicativo}/{categoria}?$skip={skip}&$top={top}&{filtro}"
+                print(url)
+
+                dados = buscar_dados(token, url)
+
+                if not dados:
+                    break
+
+                df = pd.DataFrame(dados['value'])
+
+                try:
+                    df['dataInclusao'] = pd.to_datetime(df['dataInclusao'], format="ISO8601", utc=True)
+
+                    df_filtrado = df[df['dataInclusao'] < data_mais_antiga]
+
+                    if len(df_filtrado) > 0:
+                        df_final = pd.concat([df_final, df_filtrado], ignore_index=True)
+                except Exception:
+                    break
+                print(len(df_final))
+
+                skip+=top
+
+            try:
+                print(df_final)
+                print(len(df_final))
+                df_final['dataInclusao'] = pd.to_datetime(df_final['dataInclusao']).astype(str)
+
+                carrega_dados(client, df_final, table_id)
+            except Exception as e:
+                print("Dataframe vazio.")
+        else:
+            print(table_id)
+
+            dados = buscar_dados(token, API_URL+aplicativo+'/'+categoria+filtro)
+
+            df = pd.DataFrame(dados['value'])
+
+            print(df)
+        
+            carrega_dados(client, df, table_id)
+        
 
 def carrega_dados(client, df, table_id):
     try:
