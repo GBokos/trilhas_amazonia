@@ -47,7 +47,7 @@ pytz==2024.2
 requests==2.32.3
 rsa==4.9.1
 six==1.16.0
-SQLAlchemy==0.7.10
+SQLAlchemy==1.4.0
 sqlalchemy-migrate==0.11.0
 sqlparse==0.5.1
 tabula-py==2.10.0
