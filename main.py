@@ -45,6 +45,8 @@ def main():
                 #             , aplicativo=app
                 #             , categorias_por_aplicativo=categorias_por_aplicativo 
                 #             )
+        else:
+            print("Falha ao obter token de acesso")
 
 if __name__ == "__main__":
     main()
