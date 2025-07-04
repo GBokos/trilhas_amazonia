@@ -56,6 +56,9 @@ def atualiza_dados(token, API_URL, client, projeto, aplicativo, categorias_por_a
 
             df['dataInclusao'] = pd.to_datetime(df['dataInclusao'], format="ISO8601", utc=True)
 
+            if categoria.lower() == "notafiscal":
+                df = df.drop(columns='@odata.type')
+
             df = df[df['dataInclusao'] > data_mais_recente]
 
             df['dataInclusao'] = pd.to_datetime(df['dataInclusao']).astype(str)

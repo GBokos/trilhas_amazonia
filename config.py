@@ -11,7 +11,7 @@ categorias_por_aplicativo = {
         'OrdemVenda'
         , 'OrdemVendaProduto'
         , 'Produto'
-        # 'notaFiscal'
+        , 'notaFiscal'
         , 'NFeProduto'
         , 'categoria'
         , 'pessoa'
