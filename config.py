@@ -1,4 +1,5 @@
 projetos = ['trilhasamazonia', 'trilhasamazonia2']
+id_projetos = ['670354620176', '641984986816']
 
 aplicativos = [
     'faturamento'
