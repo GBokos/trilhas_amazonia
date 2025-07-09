@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Lista de projetos
-PROJETOS=("trilhasamazonia2")
+PROJETOS=("trilhasamazonia" "trilhasamazonia2")
 
 # Nome do job e região
 JOB_NAME="trilhas-script"
