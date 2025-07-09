@@ -57,3 +57,4 @@ tzdata==2024.2
 urllib3==2.2.2
 xlrd==0.7.1
 xlwt==0.7.2
+google-cloud-secret-manager
