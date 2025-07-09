@@ -1,8 +1,9 @@
 from google.cloud import bigquery
 from google.cloud import secretmanager
 
-def connect_big_query():
-    client = bigquery.Client()
+def connect_big_query(projeto):
+    client = bigquery.Client(project=projeto)
+    print(client.project)
     return client
 
 def carregar_segredo(project_id, nome_segredo):
