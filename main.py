@@ -4,7 +4,7 @@ from auth import obter_token
 from dotenv import load_dotenv
 from etl import atualiza_dados, busca_historico
 from bigquery_client import connect_big_query, carregar_segredo
-from config import projetos, PROJETO_IDs, aplicativos, categorias_por_aplicativo
+from config import aplicativos, categorias_por_aplicativo
 
 # Função principal
 def main():
@@ -42,7 +42,14 @@ def main():
     AUTH_URL = os.getenv("AUTH_URL")
     API_URL = os.getenv("API_URL")
 
+    print(CLIENT_ID)
+    print(CLIENT_SECRET)
+    print(PLATFORM_ID)
+    print(AUTH_URL)
+    print(API_URL)
+
     token = obter_token(CLIENT_ID, CLIENT_SECRET, PLATFORM_ID, AUTH_URL)
+    print(token)
 
     if token:
         for app in aplicativos:

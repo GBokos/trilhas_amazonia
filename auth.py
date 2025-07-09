@@ -24,5 +24,4 @@ def obter_token(client_id, client_secret, platform_id, auth_url):
         return token
     else:
         token = logging.error(f"Erro ao obter token: {response.status_code} - {response.text}")
-        print(token)
         return token
