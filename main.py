@@ -25,8 +25,13 @@ def main():
         PLATFORM_ID = os.getenv("PLATFORM_ID")
         AUTH_URL = os.getenv("AUTH_URL")
         API_URL = os.getenv("API_URL")
+        
+        if not CLIENT_ID or not CLIENT_SECRET or not PLATFORM_ID or not AUTH_URL or not API_URL:
+            print("Erro: Variáveis de ambiente não configuradas corretamente.")
+            continue
 
         token = obter_token(CLIENT_ID, CLIENT_SECRET, PLATFORM_ID, AUTH_URL)
+        print("Token obtido: ", token)
 
         if token:
             for app in aplicativos:
