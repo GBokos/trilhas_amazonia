@@ -17,6 +17,7 @@ categorias_por_aplicativo = {
         , 'categoria'
         , 'pessoa'
         , 'tabelaPreco'
+        , 'grupoProduto'
     ],
     "financeiro": [
         'centroCusto',

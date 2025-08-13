@@ -41,6 +41,7 @@ def atualiza_dados(token, API_URL, client, projeto, aplicativo, categorias_por_a
             tabela_existe = False
 
         if tabela_existe:
+            print("\n")
             print(table_id)
 
             result = client.query(query).result()
@@ -50,8 +51,13 @@ def atualiza_dados(token, API_URL, client, projeto, aplicativo, categorias_por_a
 
             print(data_mais_recente)
 
-            dados = buscar_dados(token, API_URL+aplicativo+'/'+categoria+filtro)
-
+            try:
+                dados = buscar_dados(token, API_URL+aplicativo+'/'+categoria+filtro)
+            except Exception as e:
+                print('Pulando categoria:', categoria)
+                print(f"Erro ao buscar dados: {e}")
+                continue
+            
             df = pd.DataFrame(dados['value'])
 
             df['dataInclusao'] = pd.to_datetime(df['dataInclusao'], format="ISO8601", utc=True)
@@ -69,9 +75,16 @@ def atualiza_dados(token, API_URL, client, projeto, aplicativo, categorias_por_a
 
             df = pd.DataFrame(dados['value'])
 
-        print(df)
-        
-        carrega_dados(client, df, table_id)
+        try:
+            if df.empty:
+                print(f"Nenhum dado novo encontrado para {categoria} em {projeto}.")
+            else:
+                print(df)
+            
+            carrega_dados(client, df, table_id)
+        except Exception as e:
+            print(f"Erro ao carregar dados: {e}")
+            continue
 
 def busca_historico(token, API_URL, client, projeto, aplicativo, categorias_por_aplicativo):
     categorias = categorias_por_aplicativo.get(aplicativo, None)

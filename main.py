@@ -1,75 +1,74 @@
 import os
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning, module="google.cloud.bigquery._pandas_helpers")
 
 from auth import obter_token
 from dotenv import load_dotenv
+from dotenv_utils import load_environment
 from etl import atualiza_dados, busca_historico
-from bigquery_client import connect_big_query, carregar_segredo
 from config import aplicativos, categorias_por_aplicativo
 
 # Função principal
 def main():
     load_dotenv()
 
-    PROJETO = os.getenv("PROJETO")
-    PROJETO_ID = os.getenv("PROJETO_ID")
-
-    print("\n")
-    print("Iniciando carga para ", PROJETO + ' - ' + PROJETO_ID)
-    print("\n")
-
-    # env_path = PROJETO + "/.env"
-    # load_dotenv(dotenv_path=env_path, override=True)
-
-    # cred_path = PROJETO + "/credenciais_google.json"
-    # os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = cred_path
-
-    client = connect_big_query(PROJETO)
-
-    env_conteudo = carregar_segredo(PROJETO_ID, f"{PROJETO}-env")
-    for linha in env_conteudo.splitlines():
-        chave, valor = linha.split("=", 1)
-        os.environ[chave] = valor
+    AMBIENTE = os.getenv("AMBIENTE")
+    print(f"\nAmbiente: {AMBIENTE}")
     
-    json_credenciais = carregar_segredo(PROJETO_ID, f"{PROJETO}-credenciais-json")
-    with open("/tmp/credenciais.json", "w") as f:
-        f.write(json_credenciais)
+    if AMBIENTE == 'PRODUCAO':
+        client, PROJETO, CLIENT_ID, CLIENT_SECRET, PLATFORM_ID, AUTH_URL, API_URL = load_environment(AMBIENTE)
 
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/tmp/credenciais.json"
+        token = obter_token(CLIENT_ID, CLIENT_SECRET, PLATFORM_ID, AUTH_URL)
 
-    CLIENT_ID = os.getenv("CLIENT_ID")
-    CLIENT_SECRET = os.getenv("CLIENT_SECRET")
-    PLATFORM_ID = os.getenv("PLATFORM_ID")
-    AUTH_URL = os.getenv("AUTH_URL")
-    API_URL = os.getenv("API_URL")
-
-    print(CLIENT_ID)
-    print(CLIENT_SECRET)
-    print(PLATFORM_ID)
-    print(AUTH_URL)
-    print(API_URL)
-
-    token = obter_token(CLIENT_ID, CLIENT_SECRET, PLATFORM_ID, AUTH_URL)
-    print(token)
-
-    if token:
-        for app in aplicativos:
-            atualiza_dados(token=token
-                        , client=client
-                        , API_URL=API_URL
-                        , projeto=PROJETO
-                        , aplicativo=app
-                        , categorias_por_aplicativo=categorias_por_aplicativo 
-                        )
-            
-            # busca_historico(token=token
-            #             , client=client
-            #             , API_URL=API_URL
-            #             , projeto=projeto
-            #             , aplicativo=app
-            #             , categorias_por_aplicativo=categorias_por_aplicativo 
-            #             )
+        if token:
+            for app in aplicativos:
+                atualiza_dados(token=token
+                            , client=client
+                            , API_URL=API_URL
+                            , projeto=PROJETO
+                            , aplicativo=app
+                            , categorias_por_aplicativo=categorias_por_aplicativo 
+                            )
+                
+                # busca_historico(token=token
+                #             , client=client
+                #             , API_URL=API_URL
+                #             , projeto=projeto
+                #             , aplicativo=app
+                #             , categorias_por_aplicativo=categorias_por_aplicativo 
+                #             )
+        else:
+            print("Falha ao obter token de acesso")
+    
     else:
-        print("Falha ao obter token de acesso")
+        PROJETO = os.getenv("PROJETO").split(',')
+        print("Projetos:", PROJETO)
+
+        for projeto in PROJETO:
+            client, CLIENT_ID, CLIENT_SECRET, PLATFORM_ID, AUTH_URL, API_URL = load_environment(AMBIENTE, projeto=projeto)
+
+            token = obter_token(CLIENT_ID, CLIENT_SECRET, PLATFORM_ID, AUTH_URL)
+
+            if token:
+                for app in aplicativos:
+                    atualiza_dados(token=token
+                                , client=client
+                                , API_URL=API_URL
+                                , projeto=projeto # projeto em 'str' é o minúsculo em modelagem
+                                , aplicativo=app
+                                , categorias_por_aplicativo=categorias_por_aplicativo 
+                                )
+                    
+                    # busca_historico(token=token
+                    #             , client=client
+                    #             , API_URL=API_URL
+                    #             , projeto=projeto
+                    #             , aplicativo=app
+                    #             , categorias_por_aplicativo=categorias_por_aplicativo 
+                    #             )
+            else:
+                print("Falha ao obter token de acesso")
+
 
 if __name__ == "__main__":
     main()
