@@ -18,6 +18,9 @@ def obter_token(client_id, client_secret, platform_id, auth_url):
 
     response = requests.post(auth_url, data=json.dumps(payload), headers=headers)
 
+    print(response.status_code)
+    print(response.text)
+
     if response.status_code == 200:
         token = response.json().get('access_token')
         logging.info("Token obtido com sucesso.")
