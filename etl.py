@@ -106,7 +106,7 @@ def busca_historico(token, API_URL, bq_client, projeto, aplicativo, categorias_p
         df_final = pd.DataFrame()
 
         query = f"""
-            SELECT MIN(dataInclusao) 
+            SELECT MIN(dataInclusao)
             FROM {table_id}
         """
 
@@ -115,8 +115,11 @@ def busca_historico(token, API_URL, bq_client, projeto, aplicativo, categorias_p
             tabela_existe = True
         except NotFound:
             tabela_existe = False
+
+        # tabela_existe = False # For testing purposes, we assume the table does not exist
         
         if tabela_existe:
+            print("Tabela existe.")
             print(table_id)
             print("\n")
 
@@ -142,6 +145,9 @@ def busca_historico(token, API_URL, bq_client, projeto, aplicativo, categorias_p
 
                 df = pd.DataFrame(dados['value'])
 
+                if df.empty:
+                    print(f"Fim da lista para {categoria} em {projeto}.")
+                    break
                 if categoria.lower() == "notafiscal":
                     df = df.drop(columns='@odata.type')
 
@@ -160,22 +166,47 @@ def busca_historico(token, API_URL, bq_client, projeto, aplicativo, categorias_p
 
             try:
                 print(df_final)
-                print(len(df_final))
-                df_final['dataInclusao'] = pd.to_datetime(df_final['dataInclusao']).astype(str)
 
                 carrega_dados(bq_client, df_final, table_id)
             except Exception as e:
                 print("Dataframe vazio.")
         else:
+            skip = 0
+            top = 50
+
             print(table_id)
+            print('Tabela não existe, buscando dados completos.')
 
-            dados = buscar_dados(token, API_URL+aplicativo+'/'+categoria+filtro)
+            while True:
 
-            df = pd.DataFrame(dados['value'])
+                url = f"{API_URL}{aplicativo}/{categoria}?$skip={skip}&$top={top}&{filtro}"
+                print(url)
 
-            print(df)
-        
-            carrega_dados(bq_client, df, table_id)
+                dados = buscar_dados(token, url)
+
+                if not dados or len(dados['value']) == 0:
+                    break
+
+                df = pd.DataFrame(dados['value'])
+
+                if categoria.lower() == "notafiscal":
+                    df = df.drop(columns='@odata.type')
+
+                df_final = pd.concat([df_final, df], ignore_index=True)
+                print(len(df_final))
+
+                skip+=top
+
+            try:
+                print(df_final)
+                print(len(df_final))
+
+                # df_final.to_csv('df_final_ordem_venda.csv', index=False)
+
+                carrega_dados(bq_client, df_final, table_id)
+            except Exception as e:
+                print("Dataframe vazio.")
+                raise e
 
 def verifica_alteracoes(token, API_URL, bq_client, bqstorage_client, projeto, aplicativo, categorias_por_aplicativo):
     """
@@ -189,8 +220,10 @@ def verifica_alteracoes(token, API_URL, bq_client, bqstorage_client, projeto, ap
     filtro = "%24orderby=dataAlteracao%20desc"
 
     for categoria in categorias:
+        print("\nCategoria:", categoria)
         table_id = projeto+'.'+aplicativo+'.'+categoria.lower()
 
+        df_left_final = pd.DataFrame()
         df_final = pd.DataFrame()
 
         print("\n")
@@ -264,9 +297,22 @@ def verifica_alteracoes(token, API_URL, bq_client, bqstorage_client, projeto, ap
                     # Comparar com df_original e identificar alterações
                     df_merged = df_filtrado.merge(df_original, on='id', suffixes=('_new', '_orig'), how='left', indicator=True)
 
+                    df_left = df_merged[df_merged['_merge'] == 'left_only']
+                    df_left_final = pd.concat([df_left_final, df_left], ignore_index=True)
+
+
+                    print(f"Registros depois do left_only: {len(df_merged[df_merged['_merge'] == 'left_only'])}")
+                    print(f"Registros depois do right_only: {len(df_merged[df_merged['_merge'] == 'right_only'])}")
                     print(f"Registros antes do both: {len(df_merged)}")
                     df_merged = df_merged[df_merged['_merge'] == 'both']
                     print(f"Registros depois do both: {len(df_merged)}")
+
+                    df_merged = (
+                        df_merged
+                        .sort_values("dataAlteracao_new", ascending=False)
+                        .groupby("id", as_index=False)
+                        .first()
+                    )
 
                     df_alterados = df_merged[df_merged['dataAlteracao_new'].ne(df_merged['dataAlteracao_orig'])]
 
@@ -276,16 +322,19 @@ def verifica_alteracoes(token, API_URL, bq_client, bqstorage_client, projeto, ap
 
                     if not df_alterados.empty:
                         df_final = pd.concat([df_final, df_alterados], ignore_index=True)
+                        
             
                 skip+=top
             
             
             print(f"Tamanho da tabela de registros alterados para a tabela: {len(df_final)}")
+            print(f"Tamanho da tabela de registros left alterados para a tabela: {len(df_left_final)}")
+
+            df_left_final.to_csv('df_left_final'+categoria+'.csv', index=False)
 
             if not df_final.empty:
-                print(df_final[['dataAlteracao_new', 'dataAlteracao_orig', 'dataInclusao_new', 'dataInclusao_orig']])
-
-        
+                print(df_final[['id', 'dataAlteracao_new', 'dataAlteracao_orig', 'dataInclusao_new', 'dataInclusao_orig']])
+                print(df_left_final)
 
 def carrega_dados(client, df, table_id):
     try:

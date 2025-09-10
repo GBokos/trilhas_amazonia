@@ -27,13 +27,15 @@ def load_environment(AMBIENTE, projeto=None):
         for linha in env_conteudo.splitlines():
             chave, valor = linha.split("=", 1)
             os.environ[chave] = valor
+
         
-        json_credenciais = carregar_segredo(PROJETO_ID, f"{PROJETO}-credenciais-json")
+        # Definição do arquivo de secrets
+        # json_credenciais = carregar_segredo(PROJETO_ID, f"{PROJETO}-credenciais-json")
 
-        with open("/tmp/credenciais.json", "w") as f:
-            f.write(json_credenciais)
+        # with open("/tmp/credenciais.json", "w") as f:
+        #     f.write(json_credenciais)
 
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/tmp/credenciais.json"
+        # os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/tmp/credenciais.json"
 
         CLIENT_ID = os.getenv("CLIENT_ID")
         CLIENT_SECRET = os.getenv("CLIENT_SECRET")
@@ -57,8 +59,8 @@ def load_environment(AMBIENTE, projeto=None):
         env_path = projeto + "/.env"
         load_dotenv(dotenv_path=env_path, override=True)
 
-        cred_path = projeto + "/credenciais_google.json"
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = cred_path
+        # cred_path = projeto + "/credenciais_google.json"
+        # os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = cred_path
 
         # client = connect_big_query(projeto)
         bq_client = bigquery.Client()

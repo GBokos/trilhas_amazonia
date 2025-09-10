@@ -23,7 +23,7 @@ def obter_token(client_id, client_secret, platform_id, auth_url):
 
     if response.status_code == 200:
         token = response.json().get('access_token')
-        logging.info("Token obtido com sucesso.")
+        print(logging.info("Token obtido com sucesso."))
         return token
     else:
         token = logging.error(f"Erro ao obter token: {response.status_code} - {response.text}")

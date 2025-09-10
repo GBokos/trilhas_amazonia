@@ -1,5 +1,5 @@
-projetos = ['trilhasamazonia', 'trilhasamazonia2']
-id_projetos = ['670354620176', '641984986816']
+projetos = ['trilhasmgf-1', 'trilhastasp']
+id_projetos = ['48562111525', '1075522017306']
 
 aplicativos = [
     'faturamento'
