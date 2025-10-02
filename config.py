@@ -1,4 +1,7 @@
-projetos = ['trilhasmgf-1', 'trilhastasp']
+projetos = [
+    'trilhasmgf-1'
+    #, 'trilhastasp'
+]
 id_projetos = ['48562111525', '1075522017306']
 
 aplicativos = [

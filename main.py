@@ -60,8 +60,6 @@ def main():
 
             token = obter_token(CLIENT_ID, CLIENT_SECRET, PLATFORM_ID, AUTH_URL)
 
-            print(token)
-
             if token:
                 for app in aplicativos:
                     atualiza_dados(token=token

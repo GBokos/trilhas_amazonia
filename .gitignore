@@ -17,3 +17,6 @@ secrets
 
 # Ignora pycache
 __pycache__
+
+# Ignora arquivos CSV
+*.csv

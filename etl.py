@@ -238,13 +238,15 @@ def verifica_alteracoes(token, API_URL, bq_client, bqstorage_client, projeto, ap
         """
 
         try:
-            bq_client.get_table(table_id)
+            table = bq_client.get_table(table_id)
             tabela_existe = True
         except NotFound:
             tabela_existe = False
         
         if tabela_existe:
             print(table_id)
+
+            ordem_colunas = [schema_field.name for schema_field in table.schema]
 
             result = bq_client.query(query).result()
             data = next(result)
@@ -259,16 +261,17 @@ def verifica_alteracoes(token, API_URL, bq_client, bqstorage_client, projeto, ap
 
             # Buscar tabela original para comparar alterações
             query = f"""
-                SELECT id, dataInclusao, dataAlteracao
+                SELECT id, dataAlteracao
                 FROM {table_id}
                     WHERE dataInclusao >= '{data_limite.strftime('%Y-%m-%d %H:%M:%S')}'
+                    QUALIFY row_number() OVER (PARTITION BY id ORDER BY dataAlteracao DESC) = 1
             """
 
             # df_original = client.query(query).to_dataframe(bqstorage_client=client)
             df_original = bq_client.query(query).to_dataframe(bqstorage_client=bqstorage_client)
 
             df_original['dataAlteracao'] = pd.to_datetime(df_original['dataAlteracao'], format="ISO8601", utc=True)
-            df_original['dataInclusao'] = pd.to_datetime(df_original['dataInclusao'], format="ISO8601", utc=True)
+            # df_original['dataInclusao'] = pd.to_datetime(df_original['dataInclusao'], format="ISO8601", utc=True)
 
             while data_alteracao > data_limite:
 
@@ -287,7 +290,7 @@ def verifica_alteracoes(token, API_URL, bq_client, bqstorage_client, projeto, ap
 
                 # Filtrando dataframe para considerar apenas registros alterados nos últimos 60 dias
                 df['dataAlteracao'] = pd.to_datetime(df['dataAlteracao'], format="ISO8601", utc=True)
-                df['dataInclusao'] = pd.to_datetime(df['dataInclusao'], format="ISO8601", utc=True)
+                # df['dataInclusao'] = pd.to_datetime(df['dataInclusao'], format="ISO8601", utc=True)
 
                 data_alteracao = df['dataAlteracao'].min()
 
@@ -297,15 +300,15 @@ def verifica_alteracoes(token, API_URL, bq_client, bqstorage_client, projeto, ap
                     # Comparar com df_original e identificar alterações
                     df_merged = df_filtrado.merge(df_original, on='id', suffixes=('_new', '_orig'), how='left', indicator=True)
 
-                    df_left = df_merged[df_merged['_merge'] == 'left_only']
-                    df_left_final = pd.concat([df_left_final, df_left], ignore_index=True)
+                    # df_left = df_merged[df_merged['_merge'] == 'left_only']
+                    # df_left_final = pd.concat([df_left_final, df_left], ignore_index=True)
 
 
-                    print(f"Registros depois do left_only: {len(df_merged[df_merged['_merge'] == 'left_only'])}")
-                    print(f"Registros depois do right_only: {len(df_merged[df_merged['_merge'] == 'right_only'])}")
-                    print(f"Registros antes do both: {len(df_merged)}")
-                    df_merged = df_merged[df_merged['_merge'] == 'both']
-                    print(f"Registros depois do both: {len(df_merged)}")
+                    # print(f"Registros depois do left_only: {len(df_merged[df_merged['_merge'] == 'left_only'])}")
+                    # print(f"Registros depois do right_only: {len(df_merged[df_merged['_merge'] == 'right_only'])}")
+                    # print(f"Registros antes do both: {len(df_merged)}")
+                    # df_merged = df_merged[df_merged['_merge'] == 'both']
+                    # print(f"Registros depois do both: {len(df_merged)}")
 
                     df_merged = (
                         df_merged
@@ -316,7 +319,6 @@ def verifica_alteracoes(token, API_URL, bq_client, bqstorage_client, projeto, ap
 
                     df_alterados = df_merged[df_merged['dataAlteracao_new'].ne(df_merged['dataAlteracao_orig'])]
 
-
                     # Aqui você pode implementar a lógica para atualizar os registros alterados no BigQuery
                     print(f"Registros alterados encontrados: {len(df_alterados)}")
 
@@ -326,15 +328,23 @@ def verifica_alteracoes(token, API_URL, bq_client, bqstorage_client, projeto, ap
             
                 skip+=top
             
+            try:
+                df_final = df_final.rename(columns={"dataAlteracao_new": "dataAlteracao"})
+                df_final = df_final.drop(columns=["dataAlteracao_orig", "_merge"])
+                df_final = df_final[ordem_colunas]
+            except Exception as e:
+                print("Erro ao renomear colunas ou dataframe não criado:", e)
             
             print(f"Tamanho da tabela de registros alterados para a tabela: {len(df_final)}")
-            print(f"Tamanho da tabela de registros left alterados para a tabela: {len(df_left_final)}")
+            df_final.to_csv('df_final'+categoria+'.csv', index=False)
 
-            df_left_final.to_csv('df_left_final'+categoria+'.csv', index=False)
 
             if not df_final.empty:
-                print(df_final[['id', 'dataAlteracao_new', 'dataAlteracao_orig', 'dataInclusao_new', 'dataInclusao_orig']])
-                print(df_left_final)
+                print(df_final)
+                try:
+                    carrega_dados(bq_client, df_final, table_id)
+                except Exception as e:
+                    print("Dataframe vazio ou erro ao carregar dados:", e)
 
 def carrega_dados(client, df, table_id):
     try:
