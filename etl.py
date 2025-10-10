@@ -7,6 +7,34 @@ from google.cloud import bigquery
 from google.cloud import bigquery_storage
 from google.api_core.exceptions import NotFound
 
+# Mapeamento BigQuery → Pandas
+mapa_tipos = {
+        "STRING": "string",
+        "INTEGER": "Int64",
+        "INT64": "Int64",
+        "FLOAT": "float64",
+        "FLOAT64": "float64",
+        "NUMERIC": "float64",
+        "BOOLEAN": "boolean",
+        "BOOL": "boolean",
+        "DATE": "datetime64[ns]",
+        "DATETIME": "datetime64[ns]",
+        "TIMESTAMP": "datetime64[ns]",
+        "TIME": "string"
+}
+
+# Mapeamento inverso para pandas → BigQuery
+mapa_pandas_bq = {
+        "object": "STRING",
+        "string": "STRING",
+        "int64": "INT64",
+        "Int64": "INT64",
+        "float64": "FLOAT64",
+        "bool": "BOOL",
+        "boolean": "BOOL",
+        "datetime64[ns]": "TIMESTAMP"
+}
+
 def buscar_dados(token, api_url):
     headers = {
         'Authorization': f'Bearer {token}',
@@ -246,8 +274,6 @@ def verifica_alteracoes(token, API_URL, bq_client, bqstorage_client, projeto, ap
         if tabela_existe:
             print(table_id)
 
-            ordem_colunas = [schema_field.name for schema_field in table.schema]
-
             result = bq_client.query(query).result()
             data = next(result)
 
@@ -331,18 +357,23 @@ def verifica_alteracoes(token, API_URL, bq_client, bqstorage_client, projeto, ap
             try:
                 df_final = df_final.rename(columns={"dataAlteracao_new": "dataAlteracao"})
                 df_final = df_final.drop(columns=["dataAlteracao_orig", "_merge"])
-                df_final = df_final[ordem_colunas]
             except Exception as e:
                 print("Erro ao renomear colunas ou dataframe não criado:", e)
             
             print(f"Tamanho da tabela de registros alterados para a tabela: {len(df_final)}")
-            df_final.to_csv('df_final'+categoria+'.csv', index=False)
 
+            print(df_final)
 
             if not df_final.empty:
-                print(df_final)
+                print("Aplicando tipos...")
+                df_final = aplicar_tipos(bq_client, df_final, table_id, table)
+
+            df_final.to_csv('df_final'+categoria+'.csv', index=False)
+
+            if not df_final.empty:
                 try:
                     carrega_dados(bq_client, df_final, table_id)
+                    print(df_final)
                 except Exception as e:
                     print("Dataframe vazio ou erro ao carregar dados:", e)
 
@@ -359,3 +390,75 @@ def carrega_dados(client, df, table_id):
         print('Tabela carregada com sucesso.')
     except Exception as e:
         raise e
+
+def aplicar_tipos(bq_client, df: pd.DataFrame, table_id, table) -> pd.DataFrame:
+    ordem_colunas = [schema_field.name for schema_field in table.schema]
+    tipo_colunas = {schema_field.name: schema_field.field_type for schema_field in table.schema}
+
+    colunas_com_erro = {}
+
+    for coluna, tipo_bq in tipo_colunas.items():
+        if coluna in df.columns:
+            tipo_pd = mapa_tipos.get(tipo_bq)
+            if tipo_pd:
+                try:
+                    df[coluna] = df[coluna].astype(tipo_pd)
+                except Exception as e:
+                    print(f"⚠️ Erro ao converter coluna '{coluna}' para '{tipo_pd}': {e}")
+
+                    tem_lista = df[coluna].apply(lambda x: isinstance(x, list)).any()
+
+                    if not tem_lista:
+                        # Descobre o tipo atual da coluna
+                        tipo_atual = str(df[coluna].dtype)
+                        tipo_bq_sugerido = mapa_pandas_bq.get(tipo_atual, "STRING")
+                        
+                        colunas_com_erro[coluna] = tipo_bq_sugerido
+                        print(f"➡️ Coluna '{coluna}' será sugerida como '{tipo_bq_sugerido}' (pandas: {tipo_atual})")
+    
+    if colunas_com_erro:                    
+        print(f"Colunas com erro de conversão: {colunas_com_erro}")
+        recriar_tabela_com_tipos(bq_client, table_id, table, colunas_com_erro)
+    else:
+        print("✅ Todas as colunas convertidas com sucesso.")
+    
+    df = df[ordem_colunas]
+
+    return df
+
+def recriar_tabela_com_tipos(bq_client, table_id: str, table, novos_tipos: dict):
+    """
+    Recria uma tabela BigQuery aplicando novos tipos de coluna.
+    
+    Args:
+        table_id (str): ID do projeto no BigQuery.
+        novos_tipos (dict): Ex: {'coluna1': 'STRING', 'coluna2': 'INT64'}
+    """
+    
+    # Monta SELECT com SAFE_CAST para cada coluna
+    colunas_sql = []
+    for field in table.schema:
+        nome = field.name
+        tipo_atual = field.field_type
+        tipo_novo = novos_tipos.get(nome, tipo_atual)  # mantém tipo original se não for alterado
+        
+        if tipo_novo != tipo_atual:
+            colunas_sql.append(f"SAFE_CAST(CAST({nome} AS {tipo_novo}) AS {tipo_novo}) AS {nome}")
+        else:
+            colunas_sql.append(nome)
+    
+    colunas_sql_str = ",\n  ".join(colunas_sql)
+
+    query = f"""
+    CREATE OR REPLACE TABLE `{table_id}` AS
+    SELECT
+      {colunas_sql_str}
+    FROM `{table_id}`;
+    """
+
+    print("--> Executando recriação da tabela com novos tipos...")
+    print(query)
+
+    job = bq_client.query(query)
+    job.result()  # Espera o job terminar
+    print(f"✅ Tabela `{table_id}` recriada com sucesso com os novos tipos!")
