@@ -35,6 +35,8 @@ mapa_pandas_bq = {
         "datetime64[ns]": "TIMESTAMP"
 }
 
+## Função para buscar dados da API
+
 def buscar_dados(token, api_url):
     headers = {
         'Authorization': f'Bearer {token}',
@@ -50,6 +52,51 @@ def buscar_dados(token, api_url):
     else:
         logging.error(f"Erro ao buscar dados: {response.status_code} - {response.text}")
         return None
+
+## Funções ETL
+
+def busca_dados_completos(token, API_URL, bq_client, projeto, aplicativo, categorias_por_aplicativo):
+    categorias = categorias_por_aplicativo.get(aplicativo, None)
+
+    for categoria in categorias:
+        table_id = projeto[0]+'.'+aplicativo+'.'+categoria.lower()
+
+        print(table_id)
+        print("\n")
+
+        df_final = pd.DataFrame()
+
+        skip = 0
+        top = 50
+
+        while True:
+
+            url = f"{API_URL}{aplicativo}/{categoria}?$skip={skip}&$top={top}"
+            print(url)
+
+            dados = buscar_dados(token, url)
+
+            if not dados or 'value' not in dados or len(dados['value']) == 0:
+                print(f"Fim da lista para {categoria} em {projeto}.")
+                break
+
+            df = pd.DataFrame(dados['value'])
+
+            if categoria.lower() == "notafiscal":
+                df = df.drop(columns=['@odata.type'], errors='ignore')
+
+            if len(df) > 0:
+                df_final = pd.concat([df_final, df], ignore_index=True)
+            
+            print(len(df_final))
+
+            skip+=top
+
+        if df_final.empty:
+            print("DataFrame final vazio, nada a carregar.")
+        else:
+            print(df_final)
+            cria_tabela(bq_client, df_final, table_id)
 
 def atualiza_dados(token, API_URL, bq_client, projeto, aplicativo, categorias_por_aplicativo):
     categorias = categorias_por_aplicativo.get(aplicativo, None)
@@ -116,7 +163,7 @@ def atualiza_dados(token, API_URL, bq_client, projeto, aplicativo, categorias_po
             else:
                 print(df)
             
-            carrega_dados(bq_client, df, table_id)
+            append_dados(bq_client, df, table_id)
         except Exception as e:
             print(f"Erro ao carregar dados: {e}")
             continue
@@ -195,7 +242,7 @@ def busca_historico(token, API_URL, bq_client, projeto, aplicativo, categorias_p
             try:
                 print(df_final)
 
-                carrega_dados(bq_client, df_final, table_id)
+                append_dados(bq_client, df_final, table_id)
             except Exception as e:
                 print("Dataframe vazio.")
         else:
@@ -231,7 +278,7 @@ def busca_historico(token, API_URL, bq_client, projeto, aplicativo, categorias_p
 
                 # df_final.to_csv('df_final_ordem_venda.csv', index=False)
 
-                carrega_dados(bq_client, df_final, table_id)
+                append_dados(bq_client, df_final, table_id)
             except Exception as e:
                 print("Dataframe vazio.")
                 raise e
@@ -280,7 +327,7 @@ def verifica_alteracoes(token, API_URL, bq_client, bqstorage_client, projeto, ap
             data_inclusao_mais_recente = pd.to_datetime(data[0])
             data_alteracao = data_inclusao_mais_recente # Inicializa data_alteracao para entrar no loop
 
-            data_limite = data_inclusao_mais_recente - timedelta(days=1000)
+            data_limite = data_inclusao_mais_recente - timedelta(days=200)
 
             print(f"data_inclusao_mais_recente: {data_inclusao_mais_recente}")
             print(f"data_limite: {data_limite}")
@@ -368,16 +415,35 @@ def verifica_alteracoes(token, API_URL, bq_client, bqstorage_client, projeto, ap
                 print("Aplicando tipos...")
                 df_final = aplicar_tipos(bq_client, df_final, table_id, table)
 
-            df_final.to_csv('df_final'+categoria+'.csv', index=False)
+            # df_final.to_csv('df_final'+categoria+'.csv', index=False)
 
             if not df_final.empty:
                 try:
-                    carrega_dados(bq_client, df_final, table_id)
+                    # append_dados(bq_client, df_final, table_id)
                     print(df_final)
                 except Exception as e:
                     print("Dataframe vazio ou erro ao carregar dados:", e)
 
-def carrega_dados(client, df, table_id):
+## Criar e atualizar tabelas no BigQuery
+
+def cria_tabela(client, df, table_id):
+    try:
+        job = client.load_table_from_dataframe(
+                            df,
+                            table_id,
+                            job_config=bigquery.LoadJobConfig(
+                                write_disposition="WRITE_TRUNCATE",
+                                autodetect=True
+                                )
+                        )
+
+        job.result()
+
+        print('Tabela carregada com sucesso.')
+    except Exception as e:
+        raise e
+
+def append_dados(client, df, table_id):
     try:
         job = client.load_table_from_dataframe(
                             df,
@@ -390,6 +456,8 @@ def carrega_dados(client, df, table_id):
         print('Tabela carregada com sucesso.')
     except Exception as e:
         raise e
+
+## Funções para aplicar tipos de dados do BigQuery ao DataFrame
 
 def aplicar_tipos(bq_client, df: pd.DataFrame, table_id, table) -> pd.DataFrame:
     ordem_colunas = [schema_field.name for schema_field in table.schema]

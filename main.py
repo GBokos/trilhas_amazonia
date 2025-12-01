@@ -6,7 +6,7 @@ from auth import obter_token
 from dotenv import load_dotenv
 from google.cloud import bigquery
 from dotenv_utils import load_environment
-from etl import atualiza_dados, busca_historico, verifica_alteracoes
+from etl import atualiza_dados, busca_historico, verifica_alteracoes, busca_dados_completos
 from config import aplicativos, categorias_por_aplicativo
 
 # Função principal
@@ -24,13 +24,21 @@ def main():
 
         if token:
             for app in aplicativos:
-                atualiza_dados(token=token
+                busca_dados_completos(token=token
                             , bq_client=bq_client
                             , API_URL=API_URL
                             , projeto=PROJETO
                             , aplicativo=app
                             , categorias_por_aplicativo=categorias_por_aplicativo 
                             )
+
+                # atualiza_dados(token=token
+                #             , bq_client=bq_client
+                #             , API_URL=API_URL
+                #             , projeto=PROJETO
+                #             , aplicativo=app
+                #             , categorias_por_aplicativo=categorias_por_aplicativo 
+                #             )
                 
                 # busca_historico(token=token
                 #             , bq_client=bq_client
@@ -40,14 +48,14 @@ def main():
                 #             , categorias_por_aplicativo=categorias_por_aplicativo 
                 #             )
 
-                verifica_alteracoes(token=token
-                                , bq_client=bq_client
-                                , bqstorage_client=bqstorage_client
-                                , API_URL=API_URL
-                                , projeto=PROJETO
-                                , aplicativo=app
-                                , categorias_por_aplicativo=categorias_por_aplicativo 
-                                )
+                # verifica_alteracoes(token=token
+                #                 , bq_client=bq_client
+                #                 , bqstorage_client=bqstorage_client
+                #                 , API_URL=API_URL
+                #                 , projeto=PROJETO
+                #                 , aplicativo=app
+                #                 , categorias_por_aplicativo=categorias_por_aplicativo 
+                #                 )
         else:
             print("Falha ao obter token de acesso")
     
@@ -62,13 +70,21 @@ def main():
 
             if token:
                 for app in aplicativos:
-                    atualiza_dados(token=token
-                                , bq_client=bq_client
-                                , API_URL=API_URL
-                                , projeto=projeto # projeto em 'str' é o minúsculo em modelagem
-                                , aplicativo=app
-                                , categorias_por_aplicativo=categorias_por_aplicativo 
-                                )
+                    busca_dados_completos(token=token
+                            , bq_client=bq_client
+                            , API_URL=API_URL
+                            , projeto=PROJETO
+                            , aplicativo=app
+                            , categorias_por_aplicativo=categorias_por_aplicativo 
+                            )
+
+                    # atualiza_dados(token=token
+                    #             , bq_client=bq_client
+                    #             , API_URL=API_URL
+                    #             , projeto=projeto # projeto em 'str' é o minúsculo em modelagem
+                    #             , aplicativo=app
+                    #             , categorias_por_aplicativo=categorias_por_aplicativo 
+                    #             )
                     
                     # busca_historico(token=token
                     #             , bq_client=bq_client
@@ -78,14 +94,14 @@ def main():
                     #             , categorias_por_aplicativo=categorias_por_aplicativo 
                     #             )
 
-                    verifica_alteracoes(token=token
-                                , bq_client=bq_client
-                                , bqstorage_client=bqstorage_client
-                                , API_URL=API_URL
-                                , projeto=projeto # projeto em 'str' é o minúsculo em modelagem
-                                , aplicativo=app
-                                , categorias_por_aplicativo=categorias_por_aplicativo 
-                                )
+                    # verifica_alteracoes(token=token
+                    #             , bq_client=bq_client
+                    #             , bqstorage_client=bqstorage_client
+                    #             , API_URL=API_URL
+                    #             , projeto=projeto # projeto em 'str' é o minúsculo em modelagem
+                    #             , aplicativo=app
+                    #             , categorias_por_aplicativo=categorias_por_aplicativo 
+                    #             )
             else:
                 print("Falha ao obter token de acesso")
 
